@@ -1,56 +1,87 @@
-# aisecurity
+# Netskope AI Security Echo System
 
 
 ```mermaid
 graph LR
     %% 스타일 정의
-    classDef phase1 fill:#e0f2f1,stroke:#00897b,stroke-width:2px;
-    classDef phase2 fill:#e0f7fa,stroke:#00acc1,stroke-width:2px;
-    classDef phase3 fill:#e1f5fe,stroke:#039be5,stroke-width:2px;
-    classDef title fill:#26a69a,color:#fff,font-weight:bold,stroke:none;
+    classDef userApp fill:#1f3b73,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef nsCloud fill:#e0f2f1,stroke:#00acc1,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef nsComponents fill:#26c6da,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef saas fill:#1f3b73,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef pipeline fill:#1a237e,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef oob fill:#039be5,stroke:#fff,stroke-width:2px,color:#fff;
 
-    %% 상단 헤더 역할 (논리적 연결 없음)
-    H1[🔍 AI Discovery & Visibility]:::title
-    H2[🛡️ Secure the AI Pipeline]:::title
-    H3[⚡ Protect Runtime Interactions]:::title
+    %% 관리 영역 (Out of band)
+    AIRT["AI Red Teaming /<br>AI-SPM"]:::oob
+    DSPM["DSPM"]:::oob
 
-    %% 1. User to App (사용자 -> 앱)
-    subgraph User_to_App ["👤 User to App"]
+    %% ----------------------------------------------------
+    %% 상단 영역: SaaS / Cloud AI
+    %% ----------------------------------------------------
+    subgraph SaaS_Cloud_AI ["SaaS / Cloud AI"]
         direction LR
-        U1["사용자-SaaS 트래픽<br><b>[NG SWG]</b><br>개인/관리형 AI 앱<br>SaaS 내장 AI"]:::phase1
-        U2["SaaS AI 리스크 평가<br><b>[NG SWG]</b><br>AI 앱 리스크<br>SaaS 앱 내 AI 리스크"]:::phase2
-        U3["접근 및 콘텐츠 검사<br><b>[NG SWG / AI Guardrails]</b><br>사용자 접근 제어<br>사용자 및 공격자 상호작용"]:::phase3
         
-        U1 --> U2 --> U3
+        U1((User)) --> FA1["Front-end App /<br>AI Agent"]:::userApp
+        
+        %% NS Cloud 영역 (별도 박스로 그룹화)
+        subgraph NS_Cloud ["NS Cloud"]
+            direction TB
+            SWG["NG-SWG"]:::nsComponents
+            AIG["AI Guardrails"]:::nsComponents
+            AB["Agentic Broker"]:::nsComponents
+        end
+        
+        %% Front-end App에서 각각의 컴포넌트로 개별 연결
+        FA1 --> SWG
+        FA1 --> AIG
+        FA1 --> AB
+        
+        %% 타겟 리소스 및 파이프라인
+        LLM1["LLM<br>(SaaS)"]:::saas
+        MCP1["MCP Server<br>(SaaS)"]:::saas
+        DP1["Data Pipeline"]:::pipeline
+        ENT1["Ent. SaaS<br>(SFDC/Jira)"]:::pipeline
+        
+        %% 각 컴포넌트에서 타겟으로 연결 (요청하신 흐름 반영)
+        SWG --> LLM1
+        AIG --> LLM1
+        AB --> MCP1
+        
+        LLM1 <--> DP1
+        MCP1 <--> ENT1
     end
 
-    %% 2. Agents (에이전트)
-    subgraph Agents ["🤖 Agents"]
+    %% ----------------------------------------------------
+    %% 하단 영역: On-Premise / IaaS AI
+    %% ----------------------------------------------------
+    subgraph On_Premise_IaaS_AI ["On-Premise / IaaS AI"]
         direction LR
-        A1["에이전트 트래픽 (MCP)<br><b>[Agentic Broker]</b><br>MCP 서버 통신"]:::phase1
-        A2["SaaS 내 MCP 리스크 평가<br><b>[Agentic Broker]</b><br>MCP 서버 리스크"]:::phase2
-        A3["MCP 서버 접근 제어<br><b>[Agentic Broker]</b><br>접근 및 상호작용 통제"]:::phase3
         
-        A1 --> A2 --> A3
-    end
-
-    %% 3. Custom App to LLM (자체 앱 -> LLM)
-    subgraph Custom_App_to_LLM ["🖥️ Custom App to LLM"]
-        direction LR
-        C1["앱-LLM 트래픽 (API)<br><b>[AI Gateway]</b><br>자체 구축 앱 연동"]:::phase1
-        C2["LLM 취약점 테스트<br><b>[AI Red Teaming]</b><br>퍼블릭 & 프라이빗 LLM 검증"]:::phase2
-        C3["접근 및 콘텐츠 검사<br><b>[AI Gateway/NPA/Guardrails]</b><br>접근 및 속도 제한(Rate Limit)<br>사용자/공격자 상호작용"]:::phase3
+        U2((User)) --> FA2["Front-end App /<br>AI Agent"]:::userApp
         
-        C1 --> C2 --> C3
-    end
-
-    %% 4. Data Sources (데이터 소스)
-    subgraph Data_Sources ["💾 Data Sources"]
-        direction LR
-        D1["데이터 흐름 가시화<br><b>[CASB Inline]</b><br>데이터 플로우 및 정책 트리거"]:::phase1
-        D2["AI용 데이터 입력 관리<br><b>[DSPM]</b><br>탐지, 분류, 라벨링"]:::phase2
-        D3["데이터 사용 및 상호작용<br><b>[DLP]</b><br>데이터 보호 및 유출 방지"]:::phase3
+        %% 온프레미스용 Gateway
+        AIGW["AI Gateway<br>(DLP/AI Guardrail/<br>Access Control)"]:::nsComponents
         
-        D1 --> D2 --> D3
+        FA2 --> AIGW
+        
+        %% 타겟 리소스 및 파이프라인
+        LLM2["LLM<br>(On-Premise)"]:::saas
+        MCP2["MCP Server<br>(On-Premise)"]:::saas
+        DP2["Data Pipeline"]:::pipeline
+        ENT2["Ent. SaaS<br>(SFDC/Jira)"]:::pipeline
+        
+        AIGW --> LLM2
+        AIGW --> MCP2
+        
+        LLM2 <--> DP2
+        MCP2 <--> ENT2
     end
+    
+    %% ----------------------------------------------------
+    %% 추가 관리 요소 연결선 (점선 표현)
+    %% ----------------------------------------------------
+    AIRT -.-> LLM1
+    AIRT -.-> LLM2
+    DSPM -.-> DP1
+    DSPM -.-> DP2
 ```
